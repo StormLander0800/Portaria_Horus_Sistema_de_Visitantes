@@ -1,0 +1,55 @@
+
+{% extends "base.html" %}
+{% block content %}
+<section class="card">
+  <h2>Relatórios</h2>
+  <form method="get" class="grid">
+    <label>De<br><input type="date" name="from" value="{{ d_from.isoformat() }}"></label>
+    <label>Até<br><input type="date" name="to" value="{{ d_to.isoformat() }}"></label>
+    <div class="form-actions">
+      <button type="submit">Filtrar</button>
+      <a class="button" href="{{ url_for('export_visits_csv', from=d_from.isoformat(), to=d_to.isoformat()) }}">Exportar Visitas (CSV)</a>
+      <a class="button" href="{{ url_for('export_late_students_csv', from=d_from.isoformat(), to=d_to.isoformat()) }}">Exportar Atrasos (CSV)</a>
+    </div>
+  </form>
+</section>
+
+<section class="card">
+  <h3>Visitas no período</h3>
+  <table>
+    <thead><tr><th>Nome</th><th>Documento</th><th>Tipo</th><th>Entrada</th><th>Saída</th></tr></thead>
+    <tbody>
+      {% for e in visits %}
+      <tr>
+        <td>{{ e.visitor.full_name }}</td>
+        <td>{{ e.visitor.cpf or e.visitor.rg or "-" }}</td>
+        <td>{% if e.visitor.is_visitor %}Visitante{% endif %}{% if e.visitor.is_supplier %}{% if e.visitor.is_visitor %} / {% endif %}Fornecedor{% endif %}</td>
+        <td>{{ e.check_in.strftime("%d/%m/%Y %H:%M") }}</td>
+        <td>{{ e.check_out.strftime("%d/%m/%Y %H:%M") if e.check_out else "-" }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5">Sem visitas no período.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<section class="card">
+  <h3>Atrasos de Alunos</h3>
+  <table>
+    <thead><tr><th>Matrícula</th><th>Nome</th><th>Turma</th><th>Atrasos</th></tr></thead>
+    <tbody>
+      {% for s, cnt in late_summary %}
+      <tr>
+        <td>{{ s.matricula }}</td>
+        <td>{{ s.full_name }}</td>
+        <td>{{ s.class_name or "-" }}</td>
+        <td>{{ cnt }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="4">Sem atrasos no período.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

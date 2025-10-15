@@ -1,0 +1,29 @@
+
+{% extends "base.html" %}
+{% block content %}
+<section class="card">
+  <h2>Chegada de Aluno (Portaria)</h2>
+  <form method="post" class="search">
+    <input type="text" name="q" placeholder="Matrícula ou Nome exato">
+    <button type="submit">Registrar Chegada</button>
+  </form>
+  <p class="hint">Atraso calculado automaticamente após {{ base_class_time }} (UTC).</p>
+
+  <table>
+    <thead><tr><th>Data/Hora</th><th>Matrícula</th><th>Nome</th><th>Turma</th><th>Status</th></tr></thead>
+    <tbody>
+      {% for a in recent %}
+      <tr>
+        <td>{{ a.arrived_at.strftime("%d/%m/%Y %H:%M") }}</td>
+        <td>{{ a.student.matricula }}</td>
+        <td>{{ a.student.full_name }}</td>
+        <td>{{ a.student.class_name or "-" }}</td>
+        <td>{% if a.is_late %}<span class="tag tag-warn">ATRASO</span>{% else %}<span class="tag tag-ok">No horário</span>{% endif %}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5">Sem chegadas recentes.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

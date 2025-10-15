@@ -1,0 +1,47 @@
+
+{% extends "base.html" %}
+{% block content %}
+<section class="card">
+  <h2>Pesquisar e Registrar Saída</h2>
+  <form method="get" action="{{ url_for('search') }}" class="search">
+    <input type="text" name="q" placeholder="Nome, CPF ou RG" value="{{ q or '' }}">
+    <button type="submit">Pesquisar</button>
+  </form>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Nome</th><th>Documento</th><th>Tipo</th><th>Entrada</th><th>Saída</th><th>Foto</th><th>Ações</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for evt in results %}
+      <tr>
+        <td>{{ evt.visitor.full_name }}</td>
+        <td>{{ evt.visitor.cpf or evt.visitor.rg or "-" }}</td>
+        <td>{% if evt.visitor.is_visitor %}Visitante{% endif %}{% if evt.visitor.is_supplier %}{% if evt.visitor.is_visitor %} / {% endif %}Fornecedor{% endif %}</td>
+        <td>{{ evt.check_in.strftime("%d/%m/%Y %H:%M") }}</td>
+        <td>{{ evt.check_out.strftime("%d/%m/%Y %H:%M") if evt.check_out else "-" }}</td>
+        <td>
+          {% if evt.photo_path %}
+            <img src="{{ url_for('photo_file', filename=evt.photo_path.split('/')[-1]) }}" alt="foto" style="max-height:60px">
+          {% else %}-{% endif %}
+        </td>
+        <td class="actions">
+          {% if not evt.check_out %}
+          <form method="post" action="{{ url_for('checkout', event_id=evt.id) }}" style="display:inline">
+            <button type="submit">Marcar Saída</button>
+          </form>
+          {% endif %}
+          <form method="post" action="{{ url_for('new_entry', visitor_id=evt.visitor_id) }}" style="display:inline">
+            <button type="submit">Nova Entrada</button>
+          </form>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="7">Sem resultados.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

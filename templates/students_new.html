@@ -1,0 +1,13 @@
+
+{% extends "base.html" %}
+{% block content %}
+<section class="card">
+  <h2>Cadastrar Aluno</h2>
+  <form method="post" class="grid">
+    <label>Matrícula*<br><input name="matricula" required></label>
+    <label>Nome completo*<br><input name="full_name" required></label>
+    <label>Turma<br><input name="class_name" placeholder="Ex.: 3ºA"></label>
+    <div class="form-actions"><button type="submit">Salvar</button></div>
+  </form>
+</section>
+{% endblock %}

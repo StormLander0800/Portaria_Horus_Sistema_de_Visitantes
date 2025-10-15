@@ -1,0 +1,27 @@
+
+{% extends "base.html" %}
+{% block content %}
+<section class="card">
+  <h2>Alunos</h2>
+  <div class="actions">
+    <a class="button" href="{{ url_for('students_new') }}">Cadastrar Aluno</a>
+    <a class="button" href="{{ url_for('students_import') }}">Importar Alunos (CSV)</a>
+    <a class="button" href="{{ url_for('students_checkin') }}">Chegada (Portaria)</a>
+  </div>
+  <table>
+    <thead><tr><th>Matrícula</th><th>Nome</th><th>Turma</th><th>Cadastrado</th></tr></thead>
+    <tbody>
+      {% for s in students %}
+      <tr>
+        <td>{{ s.matricula }}</td>
+        <td>{{ s.full_name }}</td>
+        <td>{{ s.class_name or "-" }}</td>
+        <td>{{ s.created_at.strftime("%d/%m/%Y %H:%M") }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="4">Nenhum aluno cadastrado.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

@@ -1,0 +1,12 @@
+
+{% extends "base.html" %}
+{% block content %}
+<section class="card">
+  <h2>Importar Alunos (CSV)</h2>
+  <p>O arquivo deve ter cabeçalhos: <code>matricula,nome_completo,turma</code></p>
+  <form method="post" enctype="multipart/form-data" class="grid">
+    <label>Arquivo CSV<br><input type="file" name="file" accept=".csv" required></label>
+    <div class="form-actions"><button type="submit">Importar</button></div>
+  </form>
+</section>
+{% endblock %}

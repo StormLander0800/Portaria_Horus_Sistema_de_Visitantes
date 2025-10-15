@@ -1,0 +1,88 @@
+
+{% extends "base.html" %}
+{% block content %}
+<section class="card">
+  <h2>Registrar Entrada (Visitante / Fornecedor)</h2>
+  <form method="post" id="entry-form">
+    <div class="grid">
+      <label>Nome completo*<br><input name="full_name" required></label>
+      <label>CPF<br><input name="cpf" inputmode="numeric" placeholder="Somente números"></label>
+      <label>RG<br><input name="rg" inputmode="numeric" placeholder="Somente números"></label>
+      <label>Empresa (se fornecedor)<br><input name="company"></label>
+      <label class="checkbox"><input type="checkbox" name="is_visitor" checked> Visitante</label>
+      <label class="checkbox"><input type="checkbox" name="is_supplier"> Fornecedor</label>
+    </div>
+
+    <details class="photo">
+      <summary>Capturar foto (opcional)</summary>
+      <div class="camera">
+        <video id="video" autoplay playsinline></video>
+        <canvas id="canvas" style="display:none;"></canvas>
+        <input type="hidden" name="photo_data" id="photo_data">
+        <div class="actions">
+          <button type="button" id="startCam">Iniciar Câmera</button>
+          <button type="button" id="snap">Capturar</button>
+        </div>
+        <img id="preview" alt="Prévia" style="max-height:160px; display:none;">
+        <p class="hint">Dica: a câmera funciona em HTTPS ou em <code>http://localhost</code>.</p>
+      </div>
+    </details>
+
+    <div class="form-actions">
+      <button type="submit">Registrar Entrada</button>
+    </div>
+  </form>
+</section>
+
+<section class="card">
+  <h3>Entradas abertas (últimas 10)</h3>
+  <table>
+    <thead>
+      <tr><th>Nome</th><th>Documento</th><th>Tipo</th><th>Entrada</th></tr>
+    </thead>
+    <tbody>
+      {% for evt in open_visits %}
+      <tr>
+        <td>{{ evt.visitor.full_name }}</td>
+        <td>{{ evt.visitor.cpf or evt.visitor.rg or "-" }}</td>
+        <td>
+          {% if evt.visitor.is_visitor %}Visitante{% endif %}
+          {% if evt.visitor.is_supplier %}{% if evt.visitor.is_visitor %} / {% endif %}Fornecedor{% endif %}
+        </td>
+        <td>{{ evt.check_in.strftime("%d/%m/%Y %H:%M") }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="4">Sem entradas em aberto.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<script>
+const video = document.getElementById('video');
+const canvas = document.getElementById('canvas');
+const snapBtn = document.getElementById('snap');
+const startBtn = document.getElementById('startCam');
+const preview = document.getElementById('preview');
+const photoInput = document.getElementById('photo_data');
+let stream = null;
+startBtn?.addEventListener('click', async () => {
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+    video.srcObject = stream;
+  } catch (e) {
+    alert('Não foi possível acessar a câmera: ' + e.message);
+  }
+});
+snapBtn?.addEventListener('click', () => {
+  if (!video || !video.videoWidth) { alert('Câmera não iniciada.'); return; }
+  const w = video.videoWidth; const h = video.videoHeight;
+  canvas.width = w; canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(video, 0, 0, w, h);
+  const dataURL = canvas.toDataURL('image/png');
+  photoInput.value = dataURL;
+  preview.src = dataURL; preview.style.display = 'block';
+});
+</script>
+{% endblock %}
