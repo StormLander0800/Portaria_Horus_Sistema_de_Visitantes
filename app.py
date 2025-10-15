@@ -24,6 +24,7 @@ db = SQLAlchemy(app)
 
 # ---------- Models ----------
 class Visitor(db.Model):
+    #Tabela de pessoas externas (visitantes/fornecedores). Guarda nome, documento (CPF/RG), empresa e flags de tipo.
     __tablename__ = "visitors"
     id = db.Column(db.Integer, primary_key=True)
     full_name = db.Column(db.String(200), nullable=False)
@@ -35,6 +36,7 @@ class Visitor(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 class VisitEvent(db.Model):
+    #Evento de visita com check-in/check-out. Pode armazenar caminho/horário da foto capturada e aponta para um Visitor.
     __tablename__ = "visit_events"
     id = db.Column(db.Integer, primary_key=True)
     visitor_id = db.Column(db.Integer, db.ForeignKey("visitors.id"), nullable=False)
@@ -45,6 +47,7 @@ class VisitEvent(db.Model):
     visitor = db.relationship("Visitor", backref=db.backref("visits", lazy=True))
 
 class Student(db.Model):
+    #Cadastro de aluno com matrícula única, nome completo e turma (opcional).#
     __tablename__ = "students"
     id = db.Column(db.Integer, primary_key=True)
     matricula = db.Column(db.String(50), nullable=False, unique=True, index=True)
@@ -53,6 +56,7 @@ class Student(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 class StudentArrival(db.Model):
+    #Registro de chegada de aluno com timestamp e flag se houve atraso conforme horário base.
     __tablename__ = "student_arrivals"
     id = db.Column(db.Integer, primary_key=True)
     student_id = db.Column(db.Integer, db.ForeignKey("students.id"), nullable=False)
@@ -65,9 +69,11 @@ def photos_dir() -> str:
     return os.path.join(os.path.dirname(__file__), "photos")
 
 def ensure_dirs():
+    #Garante a existência da pasta de fotos, criando-a se necessário.#
     Path(photos_dir()).mkdir(parents=True, exist_ok=True)
 
 def cleanup_expired_photos():
+    #Remove fotos com mtime anterior ao limite (RETENTION_DAYS), zera ponteiros inválidos na base e commita se houve exclusões. Retorna o total removido.
     cutoff = datetime.utcnow() - timedelta(days=RETENTION_DAYS)
     removed = 0
     pdir = Path(photos_dir())
@@ -94,6 +100,7 @@ def normalize_doc(s: str) -> str:
     return re.sub(r"\D+", "", s)
 
 def find_or_create_visitor(full_name, cpf, rg, company, is_visitor, is_supplier):
+    #Busca por visitante via CPF normalizado (preferencial) ou RG; cria se não existir; atualiza dados/flags se já existir; persiste e retorna o Visitor.
     cpf_n = normalize_doc(cpf)
     rg_n = normalize_doc(rg)
     q = None
@@ -148,16 +155,19 @@ def compute_is_late(arrived_at: datetime) -> bool:
 
 @app.before_request
 def _maintenance():
+    #Hook @before_request: executa limpeza de fotos expiradas a cada requisição para manter storage e consistência de ponteiros.
     cleanup_expired_photos()
 
 # ---------- Static photos route ----------
 @app.route("/photos/<path:filename>")
 def photo_file(filename):
+    #Serve arquivos estáticos de foto via rota /photos/<filename>.
     return send_from_directory(photos_dir(), filename)
 
 # ---------- Home ----------
 @app.route("/", methods=["GET"])
 def home():
+    #Dashboard: total de visitas abertas e quantidade de atrasos de alunos no dia; renderiza home.html.
     open_vis_count = VisitEvent.query.filter(VisitEvent.check_out.is_(None)).count()
     today = datetime.utcnow().date()
     late_today = (
@@ -171,6 +181,7 @@ def home():
 # ---------- Visitors ----------
 @app.route("/visit", methods=["GET", "POST"])
 def index():
+    #visit: GET lista últimas entradas em aberto; POST valida e registra nova entrada de visitante/fornecedor (com captura de foto opcional).
     if request.method == "POST":
         full_name = request.form.get("full_name", "").strip()
         cpf = request.form.get("cpf", "").strip()
@@ -213,6 +224,7 @@ def index():
 
 @app.route("/search")
 def search():
+    #Pesquisa visitas por nome/CPF/RG (case-insensitive, substring) e lista resultados ordenados por check-in desc; sem query, retorna últimos 100.
     q = (request.args.get("q") or "").strip()
     results = []
     if q:
@@ -239,6 +251,7 @@ def search():
 
 @app.route("/checkout/<int:event_id>", methods=["POST"])
 def checkout(event_id: int):
+    ##Fecha (check-out) um evento de visita se ainda estiver em aberto e emite feedback ao usuário.#
     evt = VisitEvent.query.get_or_404(event_id)
     if evt.check_out is None:
         evt.check_out = datetime.utcnow()
@@ -250,6 +263,7 @@ def checkout(event_id: int):
 
 @app.route("/new_entry/<int:visitor_id>", methods=["POST"])
 def new_entry(visitor_id: int):
+    #Abre um novo evento de entrada para um visitante existente.
     v = Visitor.query.get_or_404(visitor_id)
     evt = VisitEvent(visitor_id=v.id, check_in=datetime.utcnow())
     db.session.add(evt)
@@ -260,11 +274,13 @@ def new_entry(visitor_id: int):
 # ---------- Students ----------
 @app.route("/students")
 def students_home():
+    #Lista até 200 alunos por ordem alfabética; renderiza students_home.html.
     students = Student.query.order_by(Student.full_name.asc()).limit(200).all()
     return render_template("students_home.html", app_name=APP_NAME, students=students)
 
 @app.route("/students/new", methods=["GET", "POST"])
 def students_new():
+    #GET exibe formulário; POST faz upsert de aluno por matrícula (campos obrigatórios: matrícula e nome).
     if request.method == "POST":
         matricula = (request.form.get("matricula") or "").strip()
         full_name = (request.form.get("full_name") or "").strip()
@@ -287,6 +303,7 @@ def students_new():
 
 @app.route("/students/import", methods=["GET", "POST"])
 def students_import():
+    #Importa alunos via CSV UTF-8-SIG com cabeçalhos 'matricula', 'nome_completo', 'turma'; realiza upsert e informa criados/atualizados; trata erros e exibe flash.
     if request.method == "POST":
         file = request.files.get("file")
         if not file or file.filename == "":
@@ -326,6 +343,7 @@ def students_import():
 
 @app.route("/students/checkin", methods=["GET", "POST"])
 def students_checkin():
+    #Registra chegada de aluno por matrícula exata ou nome exato; calcula atraso via horário base e persiste; lista últimos 20 check-ins.
     if request.method == "POST":
         q = (request.form.get("q") or "").strip()
         s = None
@@ -349,6 +367,7 @@ def students_checkin():
 # ---------- Reports ----------
 @app.route("/reports", methods=["GET"])
 def reports():
+    #Gera relatório de visitas e ranking de atrasos por aluno no período (padrão: últimos 7 dias); renderiza reports.html.
     date_from = request.args.get("from")
     date_to = request.args.get("to")
     def parse_date(d):
@@ -378,6 +397,7 @@ def reports():
 
 @app.route("/reports/export/visits.csv")
 def export_visits_csv():
+    #Exporta CSV de visitas para o período (padrão: últimos 7 dias) com Nome, Documento, Tipo, Entrada e Saída.
     date_from = request.args.get("from")
     date_to = request.args.get("to")
     def parse_date(d):
@@ -407,6 +427,7 @@ def export_visits_csv():
 
 @app.route("/reports/export/late_students.csv")
 def export_late_students_csv():
+    #Exporta CSV de atrasos de alunos para o período (padrão: últimos 30 dias) com Matrícula, Nome, Turma e total de atrasos.
     date_from = request.args.get("from")
     date_to = request.args.get("to")
     def parse_date(d):
@@ -441,11 +462,14 @@ def export_late_students_csv():
 # ---------- CLI ----------
 @app.cli.command("init-db")
 def init_db():
+    #Comando CLI 'flask init-db': cria tabelas no SQLite e garante diretório de fotos.
     with app.app_context():
         db.create_all()
         ensure_dirs()
     print("Banco inicializado.")
 
+### Execução local (modo desenvolvimento)
+# Cria as tabelas/pastas e sobe o servidor Flask em 0.0.0.0:5000 com debug ativado.
 if __name__ == "__main__":
     with app.app_context():
         db.create_all()
